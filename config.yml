@@ -1,0 +1,23 @@
+server:
+  ip: 127.0.0.1
+  port: 8080
+  schema: http
+  max_allowed: 100
+  cert_key: '/etc/desktop-gateway/cert/verycloud.key'
+  cert_crt: '/etc/desktop-gateway/cert/verycloud.crt'
+  tcp_health_check: true
+  health_check_interval: 3
+
+routing:
+  - pattern: /
+    proxy_pass:
+      - "http://192.168.1.1"
+      - "http://192.168.1.2:1015"
+      - "https://192.168.1.2"
+      - "http://my-server.com"
+    balance_mode: random
+  - pattern: /test
+    proxy_pass:
+      - "http://www.baidu.com"
+    balance_mode: random
+

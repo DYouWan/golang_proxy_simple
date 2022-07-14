@@ -6,12 +6,14 @@ import (
 	"proxy/basis/logging"
 )
 
-func LogPanics() mux.MiddlewareFunc {
+func PanicsHandling() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
-				if error := recover(); error != nil {
-					logging.ERROR.Printf("[%v] caught panic: %v", r.RemoteAddr, error)
+				if err := recover(); err != nil {
+					logging.ERROR.Printf("[%v] proxy panic: %v", r.RemoteAddr, err)
+					w.WriteHeader(http.StatusBadGateway)
+					_, _ = w.Write([]byte(err.(error).Error()))
 				}
 			}()
 			next.ServeHTTP(w, r)

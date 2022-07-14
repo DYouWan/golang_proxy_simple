@@ -5,10 +5,12 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"proxy/balancer"
 	"proxy/config"
 	"proxy/middleware"
 	"strconv"
-	"time"
 )
 
 func ServerStart(configFile string) error {
@@ -18,9 +20,9 @@ func ServerStart(configFile string) error {
 	}
 
 	router := mux.NewRouter()
-	//router.HandleFunc("/", health)
-	//router.HandleFunc("/hello", hello)
-	//router.HandleFunc("/helloWord", helloWord)
+	router.Use(middleware.PanicsHandling())
+	router.Use(middleware.ElapsedTimeHandling())
+
 	for _, l := range cfg.Routing {
 		httpProxy, err := NewHTTPProxy(l.ProxyPass, l.BalanceMode)
 		if err != nil {
@@ -55,19 +57,15 @@ func ServerStart(configFile string) error {
 	return nil
 }
 
-
-
-func health(w http.ResponseWriter,_ *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "server is ok")
-	time.Sleep(2e9) // 休眠2秒
-	panic("health执行失败")
+func NewHTTPProxy2(algorithm string,targetHosts []string) (*HTTPProxy, error) {
+	balancer, err := balancer.Build(algorithm, targetHosts)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(balancer)
+	return nil, nil
 }
-func hello(w http.ResponseWriter,_ *http.Request) {
-	time.Sleep(2e9) // 休眠2秒
-	w.Write([]byte("hello"))
-}
-func helloWord(w http.ResponseWriter,_ *http.Request) {
-	time.Sleep(500) // 休眠2秒
-	w.Write([]byte("hello word"))
+
+func newSingleHostReverseProxy(targetHost *url.URL) *httputil.ReverseProxy {
+	return nil
 }

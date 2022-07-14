@@ -1,9 +1,14 @@
 package balancer
 
-import "errors"
+import (
+	"errors"
+	"net/url"
+	"proxy/utils"
+)
 
 var (
 	NoHostError                = errors.New("no host")
+	InvalidTargetHost 		   = errors.New("invalid target host")
 	AlgorithmNotSupportedError = errors.New("algorithm not supported")
 )
 
@@ -22,10 +27,20 @@ var factories = make(map[string]Factory)
 type Factory func([]string) Balancer
 
 // Build 根据算法生成相应的负载均衡器
-func Build(algorithm string, hosts []string) (Balancer, error) {
+func Build(algorithm string, targetHosts []string) (Balancer, error) {
 	factory, ok := factories[algorithm]
 	if !ok {
 		return nil, AlgorithmNotSupportedError
+	}
+
+	var hosts []string
+	for _, targetHost := range targetHosts {
+		parse, err := url.Parse(targetHost)
+		if err != nil {
+			return nil, InvalidTargetHost
+		}
+		host := utils.GetHost(parse)
+		hosts = append(hosts, host)
 	}
 	return factory(hosts), nil
 }

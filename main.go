@@ -41,7 +41,6 @@ func main() {
 		if err != nil {
 			return err
 		}
-
 		return ServerStart(cfg)
 	}
 

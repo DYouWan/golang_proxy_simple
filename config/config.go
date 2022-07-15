@@ -14,6 +14,7 @@ type Config struct {
 	CertCrt             string    `yaml:"cert_crt"`
 	HealthCheck         bool      `yaml:"health_check"`
 	HealthCheckInterval uint      `yaml:"health_check_interval"`
+	Algorithms          []string  `yaml:"algorithms"`
 	Routes              []Routing `json:"ReRoutes"`
 }
 
@@ -24,8 +25,8 @@ type Routing struct {
 	UpstreamPathTemplate string `json:"UpstreamPathTemplate"`
 	//DownstreamScheme 请求协议，目前支持http和https
 	DownstreamScheme string `json:"DownstreamScheme"`
-	//UseBalancer 使用的负载均衡算法
-	UseBalancer string `json:"UseBalancer"`
+	//Algorithm 使用的负载均衡算法
+	Algorithm string `json:"Algorithm"`
 	//UseServiceDiscovery 是否启用服务发现
 	UseServiceDiscovery bool `json:"UseServiceDiscovery"`
 	//DownstreamPathTemplate 代理向目标转发时的Url路径模板
@@ -68,3 +69,22 @@ func (c *Config) Validation() error {
 	}
 	return nil
 }
+
+func (c *Config) ValidationAlgorithm(str string) error {
+	var exists bool
+	for _, algorithm := range c.Algorithms {
+		if algorithm == str {
+			exists = true
+		}
+	}
+	if exists == false {
+		return fmt.Errorf("the algorithm \"%s\" not supported", str)
+	}
+	return nil
+}
+//
+//func (r *Routing) GetDownstreamHost() error {
+//	for _, downstreamHost := range r.DownstreamHostAndPorts {
+//		url, err := url.Parse(downstreamHost.Host)
+//	}
+//}

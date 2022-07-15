@@ -10,6 +10,17 @@ func ServerStart(cfg *config.Config) error {
 	router := mux.NewRouter()
 	router.Use(middleware.PanicsHandling())
 	router.Use(middleware.ElapsedTimeHandling())
+
+	for _, route := range cfg.Routes {
+		if err := cfg.ValidationAlgorithm(route.Algorithm);err!= nil {
+			return err
+		}
+		//for i, i2 := range collection {
+		//
+		//}
+		//
+		//lb, err := balancer.Build(route.Algorithm, route.)
+	}
 	return nil
 }
 

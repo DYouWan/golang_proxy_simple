@@ -4,7 +4,7 @@
       "UpstreamHttpMethod": ["get", "post"],
       "UpstreamPathTemplate": "/apig/config/{url}",
       "DownstreamScheme": "http",
-      "UseBalancer": "random",
+      "Algorithm": "random",
       "UseServiceDiscovery": false,
       "DownstreamPathTemplate": "/api/v1/{url}",
       "DownstreamHostAndPorts": [

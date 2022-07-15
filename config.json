@@ -1,0 +1,35 @@
+{
+  "ReRoutes": [
+    {
+      "UpstreamHttpMethod": ["get", "post"],
+      "UpstreamPathTemplate": "/apig/config/{url}",
+      "DownstreamScheme": "http",
+      "UseBalancer": "random",
+      "UseServiceDiscovery": false,
+      "DownstreamPathTemplate": "/api/v1/{url}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 51502
+        },
+        {
+          "Host": "localhost",
+          "Port": 51503
+        }
+      ]
+    },
+    {
+      "UpstreamHttpMethod": [],
+      "UpstreamPathTemplate": "/apig/admin/{url}",
+      "DownstreamScheme": "http",
+      "UseServiceDiscovery": false,
+      "DownstreamPathTemplate": "/api/v1/{url}",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 51505
+        }
+      ]
+    }
+  ]
+}

@@ -4,11 +4,13 @@ import (
 	"github.com/urfave/cli"
 	"os"
 	"proxy/basis/logging"
+	"proxy/config"
 )
 
 var (
-	cliApp       *cli.App
-	configFile   string
+	cliApp           *cli.App
+	routeConfigFile  string
+	serverConfigFile string
 )
 
 func init() {
@@ -18,17 +20,29 @@ func init() {
 	cliApp.Usage = "proxy 1.0 server"
 	cliApp.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:        "configFile",
-			Value:       "config.yml",
-			Destination: &configFile,
-			Usage:       "configuration file path",
+			Name:        "serverConfigFile",
+			Value:       "server.yml",
+			Destination: &serverConfigFile,
+			Usage:       "应用程序配置文件",
+		},
+		cli.StringFlag{
+			Name:        "routeConfigFile",
+			Value:       "config.json",
+			Destination: &routeConfigFile,
+			Usage:       "路由配置文件",
 		},
 	}
 }
 
 func main() {
 	cliApp.Action = func(c *cli.Context) error {
-		return ServerStart(configFile)
+		files := []string{serverConfigFile, routeConfigFile}
+		cfg, err := config.Read(true, files...)
+		if err != nil {
+			return err
+		}
+
+		return ServerStart(cfg)
 	}
 
 	//Run the CLI app

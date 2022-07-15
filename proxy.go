@@ -1,71 +1,49 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gorilla/mux"
-	"log"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"proxy/balancer"
 	"proxy/config"
 	"proxy/middleware"
-	"strconv"
 )
 
-func ServerStart(configFile string) error {
-	cfg, err := config.ReadConfig(configFile, true)
-	if err != nil {
-		return err
-	}
-
+func ServerStart(cfg *config.Config) error {
 	router := mux.NewRouter()
 	router.Use(middleware.PanicsHandling())
 	router.Use(middleware.ElapsedTimeHandling())
-
-	for _, l := range cfg.Routing {
-		httpProxy, err := NewHTTPProxy(l.ProxyPass, l.BalanceMode)
-		if err != nil {
-			log.Fatalf("create proxy error: %s", err)
-		}
-		// start health check
-		if cfg.Server.HealthCheck {
-			httpProxy.HealthCheck(cfg.Server.HealthCheckInterval)
-		}
-		router.Handle(l.Pattern, httpProxy)
-	}
-	if cfg.Server.MaxAllowed > 0 {
-		router.Use(middleware.MaxAllowedMiddleware(cfg.Server.MaxAllowed))
-	}
-	svr := http.Server{
-		Addr:    ":" + strconv.Itoa(cfg.Server.Port),
-		Handler: router,
-	}
-
-	// listen and serve
-	if cfg.Server.Schema == "http" {
-		err := svr.ListenAndServe()
-		if err != nil {
-			log.Fatalf("listen and serve error: %s", err)
-		}
-	} else if cfg.Server.Schema == "https" {
-		err := svr.ListenAndServeTLS(cfg.Server.CertCrt, cfg.Server.CertKey)
-		if err != nil {
-			log.Fatalf("listen and serve error: %s", err)
-		}
-	}
 	return nil
 }
 
-func NewHTTPProxy2(algorithm string,targetHosts []string) (*HTTPProxy, error) {
-	balancer, err := balancer.Build(algorithm, targetHosts)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println(balancer)
-	return nil, nil
-}
 
-func newSingleHostReverseProxy(targetHost *url.URL) *httputil.ReverseProxy {
-	return nil
-}
+//
+//func NewReverseProxy(target *url.URL) *httputil.ReverseProxy {
+//	//http://127.0.0.1:2002/dir?name=123
+//	//RayQuery: name=123
+//	//Scheme: http
+//	//Host: 127.0.0.1:2002
+//	targetQuery := target.RawQuery
+//	director := func(req *http.Request) {
+//		//url_rewrite
+//		//127.0.0.1:2002/dir/abc ==> 127.0.0.1:2003/base/abc ??
+//		//127.0.0.1:2002/dir/abc ==> 127.0.0.1:2002/abc
+//		//127.0.0.1:2002/abc ==> 127.0.0.1:2003/base/abc
+//		re, _ := regexp.Compile("^/dir(.*)");
+//		req.URL.Path = re.ReplaceAllString(req.URL.Path, "$1")
+//
+//		req.URL.Scheme = target.Scheme
+//		req.URL.Host = target.Host
+//
+//		//target.Path : /base
+//		//req.URL.Path : /dir
+//		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
+//		if targetQuery == "" || req.URL.RawQuery == "" {
+//			req.URL.RawQuery = targetQuery + req.URL.RawQuery
+//		} else {
+//			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
+//		}
+//		if _, ok := req.Header["User-Agent"]; !ok {
+//			req.Header.Set("User-Agent", "")
+//		}
+//	}
+//
+//	return nil
+//}

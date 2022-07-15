@@ -7,55 +7,63 @@ import (
 )
 
 type Config struct {
-	Server  Server    `yaml:"server"`
-	Routing []Routing `yaml:"routing"`
-}
-
-type Server struct {
-	Ip                  string `yaml:"ip" default:"127.0.0.1"`
-	Port                int    `yaml:"port" default:"8080"`
-	Schema              string `yaml:"schema" default:"http"`
-	MaxAllowed          uint   `yaml:"max_allowed" default:"100"`
-	CertKey             string `yaml:"cert_key"`
-	CertCrt             string `yaml:"cert_crt"`
-	HealthCheck         bool   `yaml:"tcp_health_check"`
-	HealthCheckInterval uint   `yaml:"health_check_interval"`
+	Port                int       `yaml:"port" default:"8080"`
+	Schema              string    `yaml:"schema" default:"http"`
+	MaxAllowed          uint      `yaml:"max_allowed" default:"100"`
+	CertKey             string    `yaml:"cert_key"`
+	CertCrt             string    `yaml:"cert_crt"`
+	HealthCheck         bool      `yaml:"health_check"`
+	HealthCheckInterval uint      `yaml:"health_check_interval"`
+	Routes              []Routing `json:"ReRoutes"`
 }
 
 type Routing struct {
-	Pattern     string   `yaml:"pattern"`
-	ProxyPass   []string `yaml:"proxy_pass"`
-	BalanceMode string   `yaml:"balance_mode"`
+	//UpstreamHTTPMethod 表示客户端请求到代理时，所允许HTTP请求的方法
+	UpstreamHTTPMethod []string `json:"UpstreamHttpMethod"`
+	//UpstreamPathTemplate 客户端请求代理时的Url路径模板
+	UpstreamPathTemplate string `json:"UpstreamPathTemplate"`
+	//DownstreamScheme 请求协议，目前支持http和https
+	DownstreamScheme string `json:"DownstreamScheme"`
+	//UseBalancer 使用的负载均衡算法
+	UseBalancer string `json:"UseBalancer"`
+	//UseServiceDiscovery 是否启用服务发现
+	UseServiceDiscovery bool `json:"UseServiceDiscovery"`
+	//DownstreamPathTemplate 代理向目标转发时的Url路径模板
+	DownstreamPathTemplate string `json:"DownstreamPathTemplate"`
+	//DownstreamHostAndPorts 代理向下游转发地址集合
+	DownstreamHostAndPorts []struct {
+		Host string `json:"Host"`
+		Port int    `json:"Port"`
+	} `json:"DownstreamHostAndPorts"`
 }
 
 
-func ReadConfig(configFile string,isValidation bool) (*Config, error) {
-	if configFile == "" {
+func Read(isValidation bool,files ...string) (*Config, error) {
+	if files == nil || len(files) == 0 {
 		return nil, fmt.Errorf("invalid file path")
 	}
-	c := &Config{}
-	err := configor.Load(c, configFile)
+	cfg := &Config{}
+	err := configor.Load(cfg, files...)
 	if err != nil {
 		return nil, err
 	}
 	if isValidation {
-		return c, c.Validation()
+		return cfg, cfg.Validation()
 	}
-	return c, nil
+	return cfg, nil
 }
 
 func (c *Config) Validation() error {
-	if c.Server.Schema != "http" && c.Server.Schema != "https" {
-		return fmt.Errorf("the schema \"%s\" not supported", c.Server.Schema)
+	if c.Schema != "http" && c.Schema != "https" {
+		return fmt.Errorf("the schema \"%s\" not supported", c.Schema)
 	}
-	if c.Server.Schema == "https" && (len(c.Server.CertCrt) == 0 || len(c.Server.CertKey) == 0) {
+	if c.Schema == "https" && (len(c.CertCrt) == 0 || len(c.CertKey) == 0) {
 		return errors.New("the https proxy requires ssl_certificate_key and ssl_certificate")
 	}
-	if len(c.Routing) == 0 {
+	if len(c.Routes) == 0 {
 		return errors.New("the details of location cannot be null")
 	}
-
-	if c.Server.HealthCheckInterval < 1 {
+	if c.HealthCheckInterval < 1 {
 		return errors.New("health_check_interval must be greater than 0")
 	}
 	return nil

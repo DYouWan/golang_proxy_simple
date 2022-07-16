@@ -1,7 +1,10 @@
 {
   "ReRoutes": [
     {
-      "UpstreamHttpMethod": ["get", "post"],
+      "UpstreamHttpMethod": [
+        "get",
+        "post"
+      ],
       "UpstreamPathTemplate": "/apig/config/{url}",
       "DownstreamScheme": "http",
       "Algorithm": "random",
@@ -22,6 +25,7 @@
       "UpstreamHttpMethod": [],
       "UpstreamPathTemplate": "/apig/admin/{url}",
       "DownstreamScheme": "http",
+      "Algorithm": "random",
       "UseServiceDiscovery": false,
       "DownstreamPathTemplate": "/api/v1/{url}",
       "DownstreamHostAndPorts": [

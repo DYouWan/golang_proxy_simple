@@ -2,8 +2,6 @@ package balancer
 
 import (
 	"errors"
-	"net/url"
-	"proxy/utils"
 )
 
 var (
@@ -32,15 +30,5 @@ func Build(algorithm string, targetHosts []string) (Balancer, error) {
 	if !ok {
 		return nil, AlgorithmNotSupportedError
 	}
-
-	var hosts []string
-	for _, targetHost := range targetHosts {
-		parse, err := url.Parse(targetHost)
-		if err != nil {
-			return nil, InvalidTargetHost
-		}
-		host := utils.GetHost(parse)
-		hosts = append(hosts, host)
-	}
-	return factory(hosts), nil
+	return factory(targetHosts), nil
 }

@@ -32,10 +32,12 @@ type Routing struct {
 	//DownstreamPathTemplate 代理向目标转发时的Url路径模板
 	DownstreamPathTemplate string `json:"DownstreamPathTemplate"`
 	//DownstreamHostAndPorts 代理向下游转发地址集合
-	DownstreamHostAndPorts []struct {
-		Host string `json:"Host"`
-		Port int    `json:"Port"`
-	} `json:"DownstreamHostAndPorts"`
+	DownstreamHostAndPorts []DownstreamHost `json:"DownstreamHostAndPorts"`
+}
+
+type DownstreamHost struct {
+	Host string `json:"Host"`
+	Port int    `json:"Port"`
 }
 
 
@@ -82,9 +84,3 @@ func (c *Config) ValidationAlgorithm(str string) error {
 	}
 	return nil
 }
-//
-//func (r *Routing) GetDownstreamHost() error {
-//	for _, downstreamHost := range r.DownstreamHostAndPorts {
-//		url, err := url.Parse(downstreamHost.Host)
-//	}
-//}

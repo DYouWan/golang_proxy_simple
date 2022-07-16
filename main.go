@@ -1,10 +1,15 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
 	"github.com/urfave/cli"
+	"log"
+	"net/http"
 	"os"
 	"proxy/basis/logging"
 	"proxy/config"
+	"proxy/middleware"
+	"strconv"
 )
 
 var (
@@ -48,4 +53,45 @@ func main() {
 	if err := cliApp.Run(os.Args); err != nil {
 		logging.ERROR.Print(err)
 	}
+}
+
+func ServerStart(cfg *config.Config) error {
+	router := mux.NewRouter()
+	router.Use(middleware.PanicsHandling())
+	router.Use(middleware.ElapsedTimeHandling())
+
+	for _, route := range cfg.Routes {
+		if err := cfg.ValidationAlgorithm(route.Algorithm); err != nil {
+			return err
+		}
+		proxy, err := NewProxy(route)
+		if err != nil {
+			return err
+		}
+		if cfg.HealthCheck {
+			proxy.HealthCheck(cfg.HealthCheckInterval)
+		}
+		router.Handle(route.UpstreamPathTemplate, proxy)
+	}
+	if cfg.MaxAllowed > 0 {
+		router.Use(middleware.MaxAllowedMiddleware(cfg.MaxAllowed))
+	}
+	svr := http.Server{
+		Addr:    ":" + strconv.Itoa(cfg.Port),
+		Handler: router,
+	}
+
+	// listen and serve
+	if cfg.Schema == "http" {
+		err := svr.ListenAndServe()
+		if err != nil {
+			log.Fatalf("listen and serve error: %s", err)
+		}
+	} else if cfg.Schema == "https" {
+		err := svr.ListenAndServeTLS(cfg.CertCrt, cfg.CertKey)
+		if err != nil {
+			log.Fatalf("listen and serve error: %s", err)
+		}
+	}
+	return nil
 }

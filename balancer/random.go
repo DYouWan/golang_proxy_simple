@@ -10,8 +10,9 @@ func init() {
 	factories[RandomBalancer] = NewRandom
 }
 
+//Random 随机算法：根据host长度生成随机数，动态获取其中某一个host进行转发
 type Random struct {
-	rw sync.RWMutex
+	mux   sync.RWMutex
 	hosts []string
 	rnd   *rand.Rand
 }
@@ -24,8 +25,8 @@ func NewRandom(hosts []string) Balancer {
 }
 
 func (r *Random) Add(host string)  {
-	r.rw.Lock()
-	defer r.rw.Unlock()
+	r.mux.Lock()
+	defer r.mux.Unlock()
 	for _, h := range r.hosts {
 		if h == host {
 			return
@@ -35,8 +36,8 @@ func (r *Random) Add(host string)  {
 }
 
 func (r *Random) Remove(host string)  {
-	r.rw.Lock()
-	defer r.rw.Unlock()
+	r.mux.Lock()
+	defer r.mux.Unlock()
 	for i, h := range r.hosts {
 		if h == host {
 			r.hosts = append(r.hosts[:i], r.hosts[i+1:]...)
@@ -45,8 +46,8 @@ func (r *Random) Remove(host string)  {
 }
 
 func (r *Random) Balance(string) (string,error) {
-	r.rw.RLock()
-	defer r.rw.RUnlock()
+	r.mux.RLock()
+	defer r.mux.RUnlock()
 	if len(r.hosts) == 0 {
 		return "", NoHostError
 	}

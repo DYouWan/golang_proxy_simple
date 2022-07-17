@@ -25,7 +25,7 @@ var (
 
 type Proxy struct {
 	bl              balancer.Balancer
-	rw              sync.RWMutex
+	mux             sync.RWMutex
 	alive           map[string]bool
 	reverseProxyMap map[string]*httputil.ReverseProxy
 }
@@ -151,14 +151,14 @@ func (p *Proxy) healthCheck(host string, interval uint) {
 
 // ReadAlive reads the alive status of the site
 func (p *Proxy) ReadAlive(url string) bool {
-	p.rw.RLock()
-	defer p.rw.RUnlock()
+	p.mux.RLock()
+	defer p.mux.RUnlock()
 	return p.alive[url]
 }
 
 // SetAlive sets the alive status to the site
 func (p *Proxy) SetAlive(url string, alive bool) {
-	p.rw.Lock()
-	defer p.rw.Unlock()
+	p.mux.Lock()
+	defer p.mux.Unlock()
 	p.alive[url] = alive
 }

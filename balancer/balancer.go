@@ -1,12 +1,12 @@
 package balancer
 
-import (
-	"errors"
-)
+import "errors"
 
 var (
 	NoHostError                = errors.New("no host")
-	InvalidTargetHost 		   = errors.New("invalid target host")
+	ErrHostNotFound            = errors.New("host not found")
+	InvalidTargetHost          = errors.New("invalid target host")
+	ErrHostAlreadyExists       = errors.New("host already exists")
 	AlgorithmNotSupportedError = errors.New("algorithm not supported")
 )
 
@@ -23,6 +23,8 @@ var factories = make(map[string]Factory)
 
 // Factory 是生成Balancer的工厂, 和工厂设计模式在这里使用
 type Factory func([]string) Balancer
+
+type Hash func(key string) uint64
 
 // Build 根据算法生成相应的负载均衡器
 func Build(algorithm string, targetHosts []string) (Balancer, error) {

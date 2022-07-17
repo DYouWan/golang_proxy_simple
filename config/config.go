@@ -84,3 +84,4 @@ func (c *Config) ValidationAlgorithm(str string) error {
 	}
 	return nil
 }
+

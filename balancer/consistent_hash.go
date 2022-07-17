@@ -18,7 +18,6 @@ var (
 	defaultReplicaNum = 10
 
 	//loadBoundFactor 负载因子
-	// ref: https://research.googleblog.com/2017/04/consistent-hashing-with-bounded-loads.html
 	loadBoundFactor = 0.25
 
 	//defaultHashFunc 默认hash函数
@@ -154,6 +153,9 @@ func (c *ConsistentHash) Remove(hostName string) {
 
 //Balance 通过key获取目标主机
 func (c *ConsistentHash) Balance(key string) (string, error) {
+	if len(c.hostMap) == 0 {
+		return "", NoHostError
+	}
 	hashedKey := c.hashFunc(key)
 	idx := c.searchKey(hashedKey)
 	return c.replicaHostMap[c.sortedHostsHashSet[idx]], nil

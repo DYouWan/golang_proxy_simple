@@ -7,7 +7,7 @@
       ],
       "UpstreamPathTemplate": "/apig/config/{url}",
       "DownstreamScheme": "http",
-      "Algorithm": "random",
+      "Algorithm": "consistent-hash",
       "UseServiceDiscovery": false,
       "DownstreamPathTemplate": "/api/v1/{url}",
       "DownstreamHostAndPorts": [
@@ -25,7 +25,7 @@
       "UpstreamHttpMethod": [],
       "UpstreamPathTemplate": "/apig/admin/{url}",
       "DownstreamScheme": "http",
-      "Algorithm": "random",
+      "Algorithm": "consistent-hash",
       "UseServiceDiscovery": false,
       "DownstreamPathTemplate": "/api/v1/{url}",
       "DownstreamHostAndPorts": [

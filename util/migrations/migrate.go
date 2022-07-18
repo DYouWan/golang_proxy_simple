@@ -3,7 +3,7 @@ package migrations
 import (
 	"fmt"
 	"github.com/jinzhu/gorm"
-	"iotWeb/basis/logging"
+	"proxy/util/logging"
 )
 
 // Migration represents a single database migration

@@ -3,7 +3,7 @@ package middleware
 import (
 	"github.com/gorilla/mux"
 	"net/http"
-	"proxy/basis/logging"
+	logging2 "proxy/util/logging"
 )
 
 func PanicsHandling() mux.MiddlewareFunc {
@@ -11,7 +11,7 @@ func PanicsHandling() mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := recover(); err != nil {
-					logging.ERROR.Printf("[%v] proxy panic: %v", r.RemoteAddr, err)
+					logging2.ERROR.Printf("[%v] proxy panic: %v", r.RemoteAddr, err)
 					w.WriteHeader(http.StatusBadGateway)
 					_, _ = w.Write([]byte(err.(error).Error()))
 				}

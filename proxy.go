@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"proxy/balancer"
 	"proxy/config"
-	"proxy/utils"
+	"proxy/util"
 	"regexp"
 	"strconv"
 	"strings"
@@ -32,7 +32,7 @@ type Proxy struct {
 
 // ServeHTTP implements a proxy to the http server
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	host, err := p.bl.Balance(utils.GetHost(r.URL))
+	host, err := p.bl.Balance(util.GetHost(r.URL))
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = w.Write([]byte(fmt.Sprintf("balance error: %s", err.Error())))
@@ -53,7 +53,7 @@ func NewProxy(routing config.Routing) (*Proxy,error) {
 		if err != nil {
 			return nil, err
 		}
-		host := utils.GetHost(parseUrl)
+		host := util.GetHost(parseUrl)
 		reverseProxy := newSingleHostReverseProxy(routing.UpstreamPathTemplate, parseUrl)
 		alive[host] = true
 		reverseProxyMap[host] = reverseProxy
@@ -94,8 +94,8 @@ func newSingleHostReverseProxy(upstreamPathTemplate string,target *url.URL)*http
 		if _, ok := req.Header["User-Agent"]; !ok {
 			req.Header.Set("User-Agent", "user-agent")
 		}
-		req.Header.Set(utils.XProxy, ReverseProxy)
-		req.Header.Set(utils.XRealIP, utils.GetIP(req))
+		req.Header.Set(util.XProxy, ReverseProxy)
+		req.Header.Set(util.XRealIP, util.GetIP(req))
 	}
 	//更改内容
 	modifyFunc := func(resp *http.Response) error {
@@ -134,7 +134,7 @@ func (p *Proxy) HealthCheck(interval uint) {
 func (p *Proxy) healthCheck(host string, interval uint) {
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	for range ticker.C {
-		isBackendAlive := utils.IsBackendAlive(host)
+		isBackendAlive := util.IsBackendAlive(host)
 		if !isBackendAlive && p.ReadAlive(host) {
 			log.Printf("site unreachable, remove %s from load balancer.", host)
 

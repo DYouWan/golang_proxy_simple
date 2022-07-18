@@ -3,8 +3,8 @@ package middleware
 import (
 	"github.com/gorilla/mux"
 	"net/http"
-	"proxy/basis/logging"
-	"proxy/utils"
+	"proxy/util"
+	logging2 "proxy/util/logging"
 	"time"
 )
 
@@ -14,7 +14,7 @@ func ElapsedTimeHandling() mux.MiddlewareFunc {
 			timeStart := time.Now()
 			next.ServeHTTP(w,r)
 			timeElapsed := time.Since(timeStart)
-			logging.INFO.Println(utils.GetIP(r), r.RequestURI,timeElapsed.String())
+			logging2.INFO.Println(util.GetIP(r), r.RequestURI,timeElapsed.String())
 		})
 	}
 }

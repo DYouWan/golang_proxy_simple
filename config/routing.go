@@ -1,5 +1,10 @@
 package config
 
+import (
+	"fmt"
+	"regexp"
+)
+
 type Routing struct {
 	//UpstreamHTTPMethod 表示客户端请求到代理时，所允许HTTP请求的方法
 	UpstreamHTTPMethod []string `json:"UpstreamHttpMethod"`
@@ -20,4 +25,22 @@ type Routing struct {
 type DownstreamHost struct {
 	Host string `json:"Host"`
 	Port int    `json:"Port"`
+}
+
+//UpstreamPathParse 上游路径解析
+func (c *Routing) UpstreamPathParse() (string,error) {
+	//验证是否以/开头
+	matched, _ := regexp.MatchString("^/.*", c.UpstreamPathTemplate)
+	if !matched {
+		return "", fmt.Errorf("the UpstreamPathTemplate \"%s\" Malformed ", c.UpstreamPathTemplate)
+	}
+	//验证是否存在占位符
+	matched, _ = regexp.MatchString(".*{url}$", c.UpstreamPathTemplate)
+	if !matched {
+		return c.UpstreamPathTemplate, nil
+	}
+	//获取占位符之前的路径
+	re, _ := regexp.Compile("^(.*)/{url}$")
+	prefixPath := re.ReplaceAllString(c.UpstreamPathTemplate, "$1")
+	return prefixPath, nil
 }

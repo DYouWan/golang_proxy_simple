@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jinzhu/configor"
+	"strings"
 )
+
+const Algorithms string = "ip-hash|consistent-hash|p2c|random|round-robin|least-load|bounded"
 
 type Config struct {
 	Port                int       `yaml:"port" default:"8080"`
@@ -14,7 +17,6 @@ type Config struct {
 	CertCrt             string    `yaml:"cert_crt"`
 	HealthCheck         bool      `yaml:"health_check"`
 	HealthCheckInterval uint      `yaml:"health_check_interval"`
-	Algorithms          []string  `yaml:"algorithms"`
 	Routes              []Routing `json:"ReRoutes"`
 }
 
@@ -51,9 +53,11 @@ func (c *Config) Validation() error {
 
 func (c *Config) ValidationAlgorithm(str string) error {
 	var exists bool
-	for _, algorithm := range c.Algorithms {
+	algorithms := strings.Split(Algorithms, "|")
+	for _, algorithm := range algorithms {
 		if algorithm == str {
 			exists = true
+			break
 		}
 	}
 	if exists == false {

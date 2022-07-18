@@ -17,7 +17,7 @@ func init() {
 	cliApp = cli.NewApp()
 	cliApp.Name = "proxy-server"
 	cliApp.Version = "1.0.0"
-	cliApp.Usage = "proxy 1.0 server"
+	cliApp.Usage = "负载均衡算法：['ip-hash','consistent-hash','p2c','random','round-robin','least-load','bounded']"
 	cliApp.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "serverConfigFile",
@@ -41,7 +41,6 @@ func main() {
 		if err != nil {
 			return err
 		}
-
 		return NewServer(cfg).Start()
 	}
 

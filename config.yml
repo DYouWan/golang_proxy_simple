@@ -5,11 +5,3 @@ health_check: true
 health_check_interval: 3
 cert_key: '/etc/desktop-gateway/cert/verycloud.key'
 cert_crt: '/etc/desktop-gateway/cert/verycloud.crt'
-algorithms:
-  - "ip-hash"
-  - "consistent-hash"
-  - "p2c"
-  - "random"
-  - "round-robin"
-  - "least-load"
-  - "bounded"

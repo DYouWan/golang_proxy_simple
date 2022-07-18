@@ -21,13 +21,13 @@ func init() {
 	cliApp.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "serverConfigFile",
-			Value:       "config/config.yml",
+			Value:       "config.yml",
 			Destination: &serverConfigFile,
 			Usage:       "应用程序配置文件",
 		},
 		cli.StringFlag{
 			Name:        "routeConfigFile",
-			Value:       "config/routes.json",
+			Value:       "routes.json",
 			Destination: &routeConfigFile,
 			Usage:       "路由配置文件",
 		},
@@ -41,8 +41,8 @@ func main() {
 		if err != nil {
 			return err
 		}
-		server := NewServer(cfg)
-		return server.Start()
+
+		return NewServer(cfg).Start()
 	}
 
 	//Run the CLI app

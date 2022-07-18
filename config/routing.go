@@ -32,7 +32,7 @@ func (c *Routing) UpstreamPathParse() (string,error) {
 	//验证是否以/开头
 	matched, _ := regexp.MatchString("^/.*", c.UpstreamPathTemplate)
 	if !matched {
-		return "", fmt.Errorf("the UpstreamPathTemplate \"%s\" Malformed ", c.UpstreamPathTemplate)
+		return "", fmt.Errorf("客户端上游请求路径模板 \"%s\" 不正确 ", c.UpstreamPathTemplate)
 	}
 	//验证是否存在占位符
 	matched, _ = regexp.MatchString(".*{url}$", c.UpstreamPathTemplate)

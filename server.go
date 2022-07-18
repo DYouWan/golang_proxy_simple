@@ -1,16 +1,19 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
-	"log"
+	"fmt"
 	"net/http"
 	"proxy/config"
 	"proxy/middleware"
-	"strconv"
+	"proxy/routing"
 )
 
 type Server struct {
 	*config.Config
+
+	//proxyMap 路由Or中间件处理器
+	routeMux *routing.RouteMux
+
 	//proxyMap 每一个路由对应一个反向代理，key存放的是 客户端路径模板
 	proxyMap map[string]*Proxy
 }
@@ -18,54 +21,76 @@ type Server struct {
 func NewServer(cfg *config.Config) *Server {
 	return &Server{
 		Config:   cfg,
+		routeMux: routing.NewRouteMux(),
 		proxyMap: make(map[string]*Proxy, 0),
 	}
 }
 
+func Test(w http.ResponseWriter,r *http.Request) {
+	urlStr := fmt.Sprintf("%s%s", "51502:", r.URL.RequestURI())
+	w.Write([]byte(urlStr))
+}
+
 func (c *Server) Start() error {
-	router := mux.NewRouter()
-	router.Use(middleware.PanicsHandling())
-	router.Use(middleware.ElapsedTimeHandling())
-
-	for _, route := range c.Routes {
-		if err := c.ValidationAlgorithm(route.Algorithm); err != nil {
+	c.routeMux.Use(middleware.PanicsHandling)
+	c.routeMux.Use(middleware.ElapsedTimeHandling)
+	for _, r := range c.Routes {
+		if err := c.ValidationAlgorithm(r.Algorithm); err != nil {
 			return err
 		}
-		proxy, err := NewProxy(route)
+		prefixPath, err := r.UpstreamPathParse()
 		if err != nil {
 			return err
 		}
-		if c.HealthCheck {
-			proxy.HealthCheck(c.HealthCheckInterval)
-		}
-		c.proxyMap[route.UpstreamPathTemplate] = proxy
+		c.routeMux.HandleFunc(prefixPath, Test)
+	}
+	http.ListenAndServe(":8080",c.routeMux)
+	
 
-		router.Handle(route.UpstreamPathTemplate, proxy)//.Methods(route.UpstreamHTTPMethod...)
-	}
 
-	for key, proxy := range c.proxyMap {
-		router.Handle(key, proxy)//.Methods(route.UpstreamHTTPMethod...)
-	}
-	if c.MaxAllowed > 0 {
-		router.Use(middleware.MaxAllowedMiddleware(c.MaxAllowed))
-	}
-	svr := http.Server{
-		Addr:    ":" + strconv.Itoa(c.Port),
-		Handler: router,
-	}
 
-	// listen and serve
-	if c.Schema == "http" {
-		err := svr.ListenAndServe()
-		if err != nil {
-			log.Fatalf("listen and serve error: %s", err)
-		}
-	} else if c.Schema == "https" {
-		err := svr.ListenAndServeTLS(c.CertCrt, c.CertKey)
-		if err != nil {
-			log.Fatalf("listen and serve error: %s", err)
-		}
-	}
+
+
+	//
+	//for _, route := range c.Routes {
+	//	if err := c.ValidationAlgorithm(route.Algorithm); err != nil {
+	//		return err
+	//	}
+	//	proxy, err := NewProxy(route)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if c.HealthCheck {
+	//		proxy.HealthCheck(c.HealthCheckInterval)
+	//	}
+	//	c.proxyMap[route.UpstreamPathTemplate] = proxy
+	//
+	//	router.Handle(route.UpstreamPathTemplate, proxy)//.Methods(route.UpstreamHTTPMethod...)
+	//}
+	//
+	//for key, proxy := range c.proxyMap {
+	//	router.Handle(key, proxy)//.Methods(route.UpstreamHTTPMethod...)
+	//}
+	//if c.MaxAllowed > 0 {
+	//	c.routeMux.Use(middleware.MaxAllowedMiddleware(c.MaxAllowed))
+	//}
+	//svr := http.Server{
+	//	Addr:    ":" + strconv.Itoa(c.Port),
+	//	Handler: router,
+	//}
+	//
+	//// listen and serve
+	//if c.Schema == "http" {
+	//	err := svr.ListenAndServe()
+	//	if err != nil {
+	//		log.Fatalf("listen and serve error: %s", err)
+	//	}
+	//} else if c.Schema == "https" {
+	//	err := svr.ListenAndServeTLS(c.CertCrt, c.CertKey)
+	//	if err != nil {
+	//		log.Fatalf("listen and serve error: %s", err)
+	//	}
+	//}
 	return nil
 }
 

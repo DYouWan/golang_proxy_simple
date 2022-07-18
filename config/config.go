@@ -22,7 +22,7 @@ type Config struct {
 
 func Read(isValidation bool,files ...string) (*Config, error) {
 	if files == nil || len(files) == 0 {
-		return nil, fmt.Errorf("invalid file path")
+		return nil, fmt.Errorf("无效的配置文件路径")
 	}
 	cfg := &Config{}
 	err := configor.Load(cfg, files...)
@@ -37,16 +37,16 @@ func Read(isValidation bool,files ...string) (*Config, error) {
 
 func (c *Config) Validation() error {
 	if c.Schema != "http" && c.Schema != "https" {
-		return fmt.Errorf("the schema \"%s\" not supported", c.Schema)
+		return fmt.Errorf("\"%s\" 模式不正确", c.Schema)
 	}
 	if c.Schema == "https" && (len(c.CertCrt) == 0 || len(c.CertKey) == 0) {
-		return errors.New("the https proxy requires ssl_certificate_key and ssl_certificate")
+		return errors.New("HTTPS代理需要ssl_certificate_key和ssl_certificate")
 	}
 	if len(c.Routes) == 0 {
-		return errors.New("the details of location cannot be null")
+		return errors.New("路由配置不正确，至少要配置一个路由")
 	}
 	if c.HealthCheckInterval < 1 {
-		return errors.New("health_check_interval must be greater than 0")
+		return errors.New("健康检查间隔时间必须大于0")
 	}
 	return nil
 }
@@ -61,7 +61,7 @@ func (c *Config) ValidationAlgorithm(str string) error {
 		}
 	}
 	if exists == false {
-		return fmt.Errorf("the algorithm \"%s\" not supported", str)
+		return fmt.Errorf("该 \"%s\" 算法不支持", str)
 	}
 	return nil
 }

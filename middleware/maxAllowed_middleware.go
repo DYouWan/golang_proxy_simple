@@ -1,11 +1,10 @@
 package middleware
 
 import (
-	"github.com/gorilla/mux"
 	"net/http"
 )
 
-func MaxAllowedMiddleware(n uint) mux.MiddlewareFunc {
+func MaxAllowedMiddleware(n uint) func(next http.Handler) http.Handler {
 	sem := make(chan struct{}, n)
 	acquire := func() { sem <- struct{}{} }
 	release := func() { <-sem }

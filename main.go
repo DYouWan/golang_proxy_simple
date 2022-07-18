@@ -4,7 +4,7 @@ import (
 	"github.com/urfave/cli"
 	"os"
 	"proxy/config"
-	logging2 "proxy/util/logging"
+	"proxy/util/logging"
 )
 
 var (
@@ -44,8 +44,8 @@ func main() {
 		return NewServer(cfg).Start()
 	}
 
-	//Run the CLI app
+	//运行CLI应用程序
 	if err := cliApp.Run(os.Args); err != nil {
-		logging2.ERROR.Print(err)
+		logging.ERROR.Print(err)
 	}
 }

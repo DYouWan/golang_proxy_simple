@@ -1,7 +1,9 @@
 package routing
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 )
 
@@ -9,8 +11,11 @@ import (
 type RouteMux struct {
 	mu              sync.RWMutex
 	m               map[string]muxEntry
-	middlewareChain []middleware
+	middlewareChain []MiddlewareChainFunc
 }
+
+type MiddlewareChainFunc func(http.Handler) http.Handler
+
 //muxEntry 存储路由对应的IRouteHandler
 type muxEntry struct {
 	h       http.Handler
@@ -47,15 +52,16 @@ func (mux *RouteMux) HandleFunc(pattern string, handler func(rw http.ResponseWri
 	if handler == nil {
 		panic("处理程序不能为空")
 	}
-	mux.Handle(pattern, HandlerFunc(handler))
+	mux.Handle(pattern, http.HandlerFunc(handler))
 }
 
 // ServeTCP 根据请求数据的Header 找到对应的处理程序去执行
 func (mux *RouteMux) ServeHTTP(rw http.ResponseWriter,req *http.Request) {
 	h, _ := mux.Handler(req.RequestURI)
 	if h == nil {
-
-		//fmt.Println(conn.RemoteAddr(), "无效的请求：", req.RequestURI)
+		rw.WriteHeader(http.StatusNotFound)
+		str := fmt.Sprintf("%s%s", req.URL.RequestURI(), "当前页面不存在")
+		rw.Write([]byte(str))
 	} else {
 		if len(mux.middlewareChain) > 0 {
 			for i := range mux.middlewareChain {
@@ -87,20 +93,19 @@ func (mux *RouteMux) match(path string) (h http.Handler, pattern string) {
 	v, ok := mux.m[path]
 	if ok {
 		return v.h, v.pattern
+	}else {
+		for pathKey, entry := range mux.m {
+			if len(pathKey) > len(path) {
+				continue
+			}
+			if find := strings.Contains(path, pathKey); find {
+				return entry.h, entry.pattern
+			}
+		}
 	}
 	return nil, ""
 }
 
-type middleware func(http.Handler) http.Handler
-
-func (mux *RouteMux) Use(m middleware) {
+func (mux *RouteMux) Use(m MiddlewareChainFunc) {
 	mux.middlewareChain = append(mux.middlewareChain, m)
-}
-
-// HandlerFunc 将处理程序加入到Server的路由器
-type HandlerFunc func(rw http.ResponseWriter,req *http.Request)
-
-// ServeHTTP calls f(rw, req)
-func (f HandlerFunc) ServeHTTP(rw http.ResponseWriter,req *http.Request) {
-	f(rw, req)
 }

@@ -1,4 +1,4 @@
-package routing
+package route
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"sync"
 )
 
-//RouteMux 路由器存储多个路由
-type RouteMux struct {
+//MuxRoute 路由器存储多个路由
+type MuxRoute struct {
 	mu              sync.RWMutex
 	m               map[string]muxEntry
 	middlewareChain []MiddlewareChainFunc
@@ -22,12 +22,12 @@ type muxEntry struct {
 	pattern string
 }
 
-func NewRouteMux() *RouteMux {
-	return new(RouteMux)
+func NewMuxRoute() *MuxRoute {
+	return new(MuxRoute)
 }
 
 // Handle 向路由器注册路由
-func (mux *RouteMux) Handle(pattern string, handler http.Handler) {
+func (mux *MuxRoute) Handle(pattern string, handler http.Handler) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
@@ -48,7 +48,7 @@ func (mux *RouteMux) Handle(pattern string, handler http.Handler) {
 	mux.m[pattern] = e
 }
 
-func (mux *RouteMux) HandleFunc(pattern string, handler func(rw http.ResponseWriter,req *http.Request)) {
+func (mux *MuxRoute) HandleFunc(pattern string, handler func(rw http.ResponseWriter,req *http.Request)) {
 	if handler == nil {
 		panic("处理程序不能为空")
 	}
@@ -56,12 +56,12 @@ func (mux *RouteMux) HandleFunc(pattern string, handler func(rw http.ResponseWri
 }
 
 // ServeTCP 根据请求数据的Header 找到对应的处理程序去执行
-func (mux *RouteMux) ServeHTTP(rw http.ResponseWriter,req *http.Request) {
+func (mux *MuxRoute) ServeHTTP(rw http.ResponseWriter,req *http.Request) {
 	h, _ := mux.Handler(req.RequestURI)
 	if h == nil {
 		rw.WriteHeader(http.StatusNotFound)
 		str := fmt.Sprintf("%s%s", req.URL.RequestURI(), "当前页面不存在")
-		rw.Write([]byte(str))
+		_, _ = rw.Write([]byte(str))
 	} else {
 		if len(mux.middlewareChain) > 0 {
 			for i := range mux.middlewareChain {
@@ -75,7 +75,7 @@ func (mux *RouteMux) ServeHTTP(rw http.ResponseWriter,req *http.Request) {
 }
 
 // Handler 匹配处理程序
-func (mux *RouteMux) Handler(header string) (h http.Handler, pattern string) {
+func (mux *MuxRoute) Handler(header string) (h http.Handler, pattern string) {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 
@@ -89,7 +89,7 @@ func (mux *RouteMux) Handler(header string) (h http.Handler, pattern string) {
 	return
 }
 
-func (mux *RouteMux) match(path string) (h http.Handler, pattern string) {
+func (mux *MuxRoute) match(path string) (h http.Handler, pattern string) {
 	v, ok := mux.m[path]
 	if ok {
 		return v.h, v.pattern
@@ -106,6 +106,6 @@ func (mux *RouteMux) match(path string) (h http.Handler, pattern string) {
 	return nil, ""
 }
 
-func (mux *RouteMux) Use(m MiddlewareChainFunc) {
+func (mux *MuxRoute) Use(m MiddlewareChainFunc) {
 	mux.middlewareChain = append(mux.middlewareChain, m)
 }

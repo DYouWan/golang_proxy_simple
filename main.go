@@ -4,6 +4,7 @@ import (
 	"github.com/urfave/cli"
 	"os"
 	"proxy/config"
+	"proxy/route"
 	"proxy/util/logging"
 )
 
@@ -21,13 +22,13 @@ func init() {
 	cliApp.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "serverConfigFile",
-			Value:       "config/config.yml",
+			Value:       "config.yml",
 			Destination: &serverConfigFile,
 			Usage:       "应用程序配置文件",
 		},
 		cli.StringFlag{
 			Name:        "routeConfigFile",
-			Value:       "config/routing.json",
+			Value:       "routing.json",
 			Destination: &routeConfigFile,
 			Usage:       "路由配置文件",
 		},
@@ -41,7 +42,7 @@ func main() {
 		if err != nil {
 			return err
 		}
-		return NewServer(cfg).Start()
+		return route.NewServerRoute(cfg).Start()
 	}
 
 	//运行CLI应用程序

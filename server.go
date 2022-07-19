@@ -9,20 +9,6 @@ import (
 	"strconv"
 )
 
-type Server struct {
-	*config.Config
-
-	//proxyMap 每一个路由对应一个反向代理，key存放的是 客户端路径模板
-	proxyMap map[string]*ProxyRoute
-}
-
-func NewServer(cfg *config.Config) *Server {
-	return &Server{
-		Config: cfg,
-		proxyMap: make(map[string]*ProxyRoute, 0),
-	}
-}
-
 func ServerStart(cfg *config.Config) error {
 	muxRouter := mux.NewRouter()
 	muxRouter.Use(middleware.ElapsedTimeHandling)
@@ -36,8 +22,9 @@ func ServerStart(cfg *config.Config) error {
 			return err
 		}
 
+		upstreamPath := r.UpstreamPathParse()
 		downstreamPath := r.DownstreamPathParse()
-		proxyRoute, err := NewProxyRoute(r.Algorithm, r.DownstreamScheme, downstreamPath, r.DownstreamHostAndPorts)
+		proxyRoute, err := NewProxyRoute(r.Algorithm, r.DownstreamScheme,upstreamPath, downstreamPath, r.DownstreamHostAndPorts)
 		if err != nil {
 			return err
 		}
@@ -46,14 +33,14 @@ func ServerStart(cfg *config.Config) error {
 			proxyRoute.HealthCheck(cfg.HealthCheckInterval)
 		}
 
-		upstreamPath := r.UpstreamPathParse()
-		muxRouter.Handle(upstreamPath, proxyRoute)
+		muxRouter.PathPrefix(upstreamPath).Handler(proxyRoute)
 	}
 
 	svr := http.Server{
 		Addr:    ":" + strconv.Itoa(cfg.Port),
 		Handler: muxRouter,
 	}
+
 	if cfg.Schema == "http" {
 		err := svr.ListenAndServe()
 		if err != nil {

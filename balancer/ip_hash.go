@@ -41,13 +41,13 @@ func (h *IPHash) Remove(host string) {
 		}
 	}
 }
-func (h *IPHash) Balance(host string)(string,error) {
+func (h *IPHash) Balance(ip string)(string,error) {
 	h.mux.RLock()
 	defer h.mux.RUnlock()
 	if len(h.hosts) == 0 {
 		return "", NoHostError
 	}
-	value := crc32.ChecksumIEEE([]byte(host)) % uint32(len(h.hosts))
+	value := crc32.ChecksumIEEE([]byte(ip)) % uint32(len(h.hosts))
 	return h.hosts[value], nil
 }
 

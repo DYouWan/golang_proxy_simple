@@ -12,6 +12,7 @@ import (
 	"proxy/config"
 	"proxy/util"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -33,7 +34,8 @@ type ProxyRoute struct {
 
 //ServeHTTP 实现到http服务器的代理
 func (p *ProxyRoute) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	host, err := p.bl.Balance(util.GetHost(r.URL))
+	key := fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery)
+	host, err := p.bl.Balance(key)
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = w.Write([]byte(fmt.Sprintf("balance error: %s", err.Error())))
@@ -84,7 +86,7 @@ func (p *ProxyRoute) SetAlive(url string, alive bool) {
 }
 
 //NewProxyRoute 接收下游的主机信息，返回下游主机代理
-func NewProxyRoute(algorithm string,scheme string,targetPath string, downstreamHosts []config.DownstreamHost) (*ProxyRoute,error) {
+func NewProxyRoute(algorithm string,scheme string,upstreamPath string,downstreamPath string, downstreamHosts []config.DownstreamHost) (*ProxyRoute,error) {
 	var targetHosts []string
 	alive := make(map[string]bool)
 	reverseProxyMap := make(map[string]*httputil.ReverseProxy)
@@ -96,7 +98,7 @@ func NewProxyRoute(algorithm string,scheme string,targetPath string, downstreamH
 		}
 		alive[host] = true
 		targetHosts = append(targetHosts, host)
-		reverseProxyMap[host] = newSingleHostReverseProxy(scheme, host, targetPath)
+		reverseProxyMap[host] = newSingleHostReverseProxy(scheme, host, upstreamPath, downstreamPath)
 	}
 	lb, err := balancer.Build(algorithm, targetHosts)
 	if err != nil {
@@ -122,10 +124,12 @@ var transport = &http.Transport{
 	ExpectContinueTimeout: 1 * time.Second,  //100-continue 超时时间
 }
 
-func newSingleHostReverseProxy(scheme string,host string,targetPath string)*httputil.ReverseProxy {
+func newSingleHostReverseProxy(scheme string,host string,upstreamPath string,downstreamPath string)*httputil.ReverseProxy {
 	director := func(req *http.Request) {
 		req.URL.Host = host
 		req.URL.Scheme = scheme
+
+		targetPath := strings.Replace(req.URL.Path, upstreamPath, downstreamPath, 1)
 		req.URL.Path = targetPath
 
 		if _, ok := req.Header["User-Agent"]; !ok {

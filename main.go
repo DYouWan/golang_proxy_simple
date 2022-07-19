@@ -4,7 +4,6 @@ import (
 	"github.com/urfave/cli"
 	"os"
 	"proxy/config"
-	"proxy/route"
 	"proxy/util/logging"
 )
 
@@ -42,7 +41,7 @@ func main() {
 		if err != nil {
 			return err
 		}
-		return route.NewServerRoute(cfg).Start()
+		return ServerStart(cfg)
 	}
 
 	//运行CLI应用程序

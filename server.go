@@ -1,6 +1,7 @@
-package route
+package main
 
 import (
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"proxy/config"
@@ -8,29 +9,30 @@ import (
 	"strconv"
 )
 
-type ServerRoute struct {
+type Server struct {
 	*config.Config
-
-	//proxyMap 路由Or中间件处理器
-	routeMux *MuxRoute
 
 	//proxyMap 每一个路由对应一个反向代理，key存放的是 客户端路径模板
 	proxyMap map[string]*ProxyRoute
 }
 
-func NewServerRoute(cfg *config.Config) *ServerRoute {
-	return &ServerRoute{
-		Config:   cfg,
-		routeMux: NewMuxRoute(),
+func NewServer(cfg *config.Config) *Server {
+	return &Server{
+		Config: cfg,
 		proxyMap: make(map[string]*ProxyRoute, 0),
 	}
 }
 
-func (sr *ServerRoute) Start() error {
-	sr.routeMux.Use(middleware.PanicsHandling)
-	sr.routeMux.Use(middleware.ElapsedTimeHandling)
-	for _, r := range sr.Routes {
-		if err := sr.ValidationAlgorithm(r.Algorithm); err != nil {
+func ServerStart(cfg *config.Config) error {
+	muxRouter := mux.NewRouter()
+	muxRouter.Use(middleware.ElapsedTimeHandling)
+	muxRouter.Use(middleware.PanicsHandling)
+	if cfg.MaxAllowed > 0 {
+		muxRouter.Use(middleware.MaxAllowedMiddleware(cfg.MaxAllowed))
+	}
+
+	for _, r := range cfg.Routes {
+		if err := cfg.ValidationAlgorithm(r.Algorithm); err != nil {
 			return err
 		}
 
@@ -40,31 +42,25 @@ func (sr *ServerRoute) Start() error {
 			return err
 		}
 
-		if sr.HealthCheck {
-			proxyRoute.HealthCheck(sr.HealthCheckInterval)
+		if cfg.HealthCheck {
+			proxyRoute.HealthCheck(cfg.HealthCheckInterval)
 		}
 
 		upstreamPath := r.UpstreamPathParse()
-		sr.proxyMap[upstreamPath] = proxyRoute
-		sr.routeMux.Handle(upstreamPath, proxyRoute)
+		muxRouter.Handle(upstreamPath, proxyRoute)
 	}
 
-	if sr.MaxAllowed > 0 {
-		sr.routeMux.Use(middleware.MaxAllowedMiddleware(sr.MaxAllowed))
-	}
 	svr := http.Server{
-		Addr:    ":" + strconv.Itoa(sr.Port),
-		Handler: sr.routeMux,
+		Addr:    ":" + strconv.Itoa(cfg.Port),
+		Handler: muxRouter,
 	}
-
-	// listen and serve
-	if sr.Schema == "http" {
+	if cfg.Schema == "http" {
 		err := svr.ListenAndServe()
 		if err != nil {
 			log.Fatalf("listen and serve error: %s", err)
 		}
-	} else if sr.Schema == "https" {
-		err := svr.ListenAndServeTLS(sr.CertCrt, sr.CertKey)
+	} else {
+		err := svr.ListenAndServeTLS(cfg.CertCrt, cfg.CertKey)
 		if err != nil {
 			log.Fatalf("listen and serve error: %s", err)
 		}
@@ -72,9 +68,10 @@ func (sr *ServerRoute) Start() error {
 	return nil
 }
 
-
-//func registerHost(w http.ResponseWriter, r *http.Request) {
+//func (s *Server) RegisterHost(w http.ResponseWriter, r *http.Request)  {
 //	_ = r.ParseForm()
+//	host := r.Form["host"][0]
+//
 //
 //	err := p.RegisterHost(r.Form["host"][0])
 //	if err != nil {
@@ -85,6 +82,9 @@ func (sr *ServerRoute) Start() error {
 //
 //	_, _ = fmt.Fprintf(w, fmt.Sprintf("register host: %s success", r.Form["host"][0]))
 //}
+
+
+
 //func unregisterHost(w http.ResponseWriter, r *http.Request) {
 //	_ = r.ParseForm()
 //

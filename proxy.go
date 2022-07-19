@@ -1,4 +1,4 @@
-package route
+package main
 
 import (
 	"bytes"
@@ -56,12 +56,12 @@ func (p *ProxyRoute) healthCheck(host string, interval uint) {
 	for range ticker.C {
 		isBackendAlive := util.IsBackendAlive(host)
 		if !isBackendAlive && p.ReadAlive(host) {
-			log.Printf("site unreachable, remove %s from load balancer.", host)
+			log.Printf("该主机 %s 不可用，已经从负载均衡器中移除", host)
 
 			p.SetAlive(host, false)
 			p.bl.Remove(host)
 		} else if isBackendAlive && !p.ReadAlive(host) {
-			log.Printf("site reachable, add %s to load balancer.", host)
+			log.Printf("该主机 %s 正常，已添加到负载均衡器", host)
 
 			p.SetAlive(host, true)
 			p.bl.Add(host)

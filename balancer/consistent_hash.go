@@ -163,21 +163,16 @@ func (c *ConsistentHash) Balance(key string) (string, error) {
 
 //Inc 主机负载增加1 应该只在通过GetLeast获取主机时使用
 func (c *ConsistentHash) Inc(hostName string) {
-	c.Lock()
-	defer c.Unlock()
-
 	atomic.AddInt64(&c.hostMap[hostName].LoadBound, 1)
 	atomic.AddInt64(&c.totalLoad, 1)
 }
 
 //Done 将主机负载减1 应该只在通过GetLeast获取主机时使用
 func (c *ConsistentHash) Done(host string) {
-	c.Lock()
-	defer c.Unlock()
-
 	if _, ok := c.hostMap[host]; !ok {
 		return
 	}
+
 	atomic.AddInt64(&c.hostMap[host].LoadBound, -1)
 	atomic.AddInt64(&c.totalLoad, -1)
 }

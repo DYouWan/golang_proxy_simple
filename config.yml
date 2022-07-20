@@ -2,6 +2,7 @@ port : 8080
 schema: "http"
 max_allowed: 100
 health_check: true
+
 health_check_interval: 3
 cert_key: '/etc/desktop-gateway/cert/verycloud.key'
 cert_crt: '/etc/desktop-gateway/cert/verycloud.crt'

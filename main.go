@@ -41,7 +41,7 @@ func main() {
 		if err != nil {
 			return err
 		}
-		return ServerStart(cfg)
+		return ProxyStart(cfg)
 	}
 
 	//运行CLI应用程序

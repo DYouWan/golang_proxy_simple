@@ -19,6 +19,12 @@ type Balancer interface {
 	Done(string)
 }
 
+//HostLoad 主机负载  供其他需要使用的算法使用
+type HostLoad struct {
+	name string
+	load uint64
+}
+
 var factories = make(map[string]Factory)
 
 // Factory 是生成Balancer的工厂, 和工厂设计模式在这里使用

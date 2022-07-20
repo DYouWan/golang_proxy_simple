@@ -57,7 +57,8 @@ func NewRouterHandler(cfg *config.Config) (*mux.Router,error) {
 		if cfg.HealthCheck {
 			proxyRoute.HealthCheck(cfg.HealthCheckInterval)
 		}
-		muxRouter.PathPrefix(upstreamPath).Handler(proxyRoute)
+
+		muxRouter.PathPrefix(upstreamPath).Handler(proxyRoute).Methods(r.UpstreamHTTPMethod...)
 	}
 	return muxRouter,nil
 }

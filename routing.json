@@ -2,8 +2,8 @@
   "ReRoutes": [
     {
       "UpstreamHttpMethod": [
-        "get",
-        "post"
+        "GET",
+        "POST"
       ],
       "UpstreamPathTemplate": "/apig/config/{url}",
       "DownstreamScheme": "http",

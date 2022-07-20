@@ -67,3 +67,56 @@ func main() {
 		logging.Error(err)
 	}
 }
+
+//func registerHost(w http.ResponseWriter, r *http.Request) {
+//	_ = r.ParseForm()
+//	host := r.Form["host"][0]
+//
+//	err := p.RegisterHost(r.Form["host"][0])
+//	if err != nil {
+//		w.WriteHeader(http.StatusInternalServerError)
+//		_, _ = fmt.Fprintf(w, err.Error())
+//		return
+//	}
+//
+//	_, _ = fmt.Fprintf(w, fmt.Sprintf("register host: %s success", r.Form["host"][0]))
+//}
+
+//func unregisterHost(w http.ResponseWriter, r *http.Request) {
+//	_ = r.ParseForm()
+//
+//	err := p.UnregisterHost(r.Form["host"][0])
+//	if err != nil {
+//		w.WriteHeader(http.StatusInternalServerError)
+//		_, _ = fmt.Fprintf(w, err.Error())
+//		return
+//	}
+//
+//	_, _ = fmt.Fprintf(w, fmt.Sprintf("unregister host: %s success", r.Form["host"][0]))
+//}
+//
+//func getKey(w http.ResponseWriter, r *http.Request) {
+//	_ = r.ParseForm()
+//
+//	val, err := p.GetKey(r.Form["key"][0])
+//	if err != nil {
+//		w.WriteHeader(http.StatusInternalServerError)
+//		_, _ = fmt.Fprintf(w, err.Error())
+//		return
+//	}
+//
+//	_, _ = fmt.Fprintf(w, fmt.Sprintf("key: %s, val: %s", r.Form["key"][0], val))
+//}
+//
+//func getKeyLeast(w http.ResponseWriter, r *http.Request) {
+//	_ = r.ParseForm()
+//
+//	val, err := p.GetKeyLeast(r.Form["key"][0])
+//	if err != nil {
+//		w.WriteHeader(http.StatusInternalServerError)
+//		_, _ = fmt.Fprintf(w, err.Error())
+//		return
+//	}
+//
+//	_, _ = fmt.Fprintf(w, fmt.Sprintf("key: %s, val: %s", r.Form["key"][0], val))
+//}

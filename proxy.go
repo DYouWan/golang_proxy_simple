@@ -26,6 +26,8 @@ var (
 //Proxy 路由代理
 type Proxy struct {
 	mux sync.RWMutex
+	//prefixPath 前缀路径
+	prefixPath string
 	//bl 通过请求时的url，获取具体的负载均衡器
 	bl balancer.Balancer
 	//alive 主机存活检测
@@ -46,7 +48,6 @@ func NewRouterHandler(cfg *config.Config) (*mux.Router,error) {
 		if err := cfg.ValidationAlgorithm(r.Algorithm); err != nil {
 			return nil, err
 		}
-
 		upstreamPath := r.UpstreamPathParse()
 		downstreamPath := r.DownstreamPathParse()
 		proxyRoute, err := NewProxy(r.Algorithm, r.DownstreamScheme, upstreamPath, downstreamPath, r.DownstreamHostAndPorts)
@@ -57,7 +58,6 @@ func NewRouterHandler(cfg *config.Config) (*mux.Router,error) {
 		if cfg.HealthCheck {
 			proxyRoute.HealthCheck(cfg.HealthCheckInterval)
 		}
-
 		muxRouter.PathPrefix(upstreamPath).Handler(proxyRoute).Methods(r.UpstreamHTTPMethod...)
 	}
 	return muxRouter,nil
@@ -88,26 +88,10 @@ func NewProxy(algorithm string,scheme string,upstreamPath string,downstreamPath 
 	proxy := &Proxy{
 		bl:              lb,
 		alive:           alive,
+		prefixPath:      upstreamPath,
 		reverseProxyMap: reverseProxyMap,
 	}
 	return proxy, nil
-}
-
-
-//ServeHTTP 实现到http服务器的代理
-func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	key := fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery)
-	host, err := p.bl.Balance(key)
-	if err != nil {
-		w.WriteHeader(http.StatusBadGateway)
-		errStr := fmt.Sprintf("负载均衡器: %s", err.Error())
-		logging.Error(errStr)
-		_, _ = w.Write([]byte(errStr))
-		return
-	}
-	p.bl.Inc(host)
-	defer p.bl.Done(host)
-	p.reverseProxyMap[host].ServeHTTP(w, r)
 }
 
 //HealthCheck 主机健康检查
@@ -117,6 +101,7 @@ func (p *Proxy) HealthCheck(interval uint) {
 	}
 }
 
+//healthCheck 主机健康检查
 func (p *Proxy) healthCheck(host string, interval uint) {
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	for range ticker.C {
@@ -133,6 +118,61 @@ func (p *Proxy) healthCheck(host string, interval uint) {
 			p.bl.Add(host)
 		}
 	}
+}
+
+//ServeHTTP 实现到http服务器的代理
+func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	//当前缀匹配进来之后，先判断是否请求内置的接口
+	handler :=p.GetBuiltinHandler(p.prefixPath,r.URL.Path)
+	if handler != nil {
+		handler(w, r)
+		return
+	}
+	//如果不是请求内置接口，则进行转发
+	key := fmt.Sprintf("%s?%s", r.URL.Path, r.URL.RawQuery)
+	host, err := p.bl.Balance(key)
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		errStr := fmt.Sprintf("负载均衡器: %s", err.Error())
+		logging.Error(errStr)
+		_, _ = w.Write([]byte(errStr))
+		return
+	}
+	p.bl.Inc(host)
+	defer p.bl.Done(host)
+	p.reverseProxyMap[host].ServeHTTP(w, r)
+}
+
+func (p *Proxy) GetBuiltinHandler(upstreamPath string,reqPath string) func(w http.ResponseWriter, r *http.Request) {
+	if reqPath == fmt.Sprintf("%s/register", upstreamPath) {
+		return p.registerHost
+	}
+	if reqPath == fmt.Sprintf("%s/unregister", upstreamPath) {
+		return p.unregisterHost
+	}
+	return nil
+}
+
+func (p *Proxy) registerHost(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	host := r.Form["host"][0]
+	if host != "" {
+		p.bl.Add(host)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(fmt.Sprintf("主机: %s 添加成功", host)))
+}
+
+func (p *Proxy) unregisterHost(w http.ResponseWriter, r *http.Request) {
+	_ = r.ParseForm()
+	host := r.Form["host"][0]
+	if host != "" {
+		p.bl.Remove(host)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(fmt.Sprintf("主机: %s 删除成功", host)))
 }
 
 // ReadAlive 获取主机存活状态
@@ -204,59 +244,3 @@ func newSingleHostReverseProxy(scheme string,host string,upstreamPath string,dow
 		ErrorHandler:   errorHandler,
 	}
 }
-
-//func (s *Server) RegisterHost(w http.ResponseWriter, r *http.Request)  {
-//	_ = r.ParseForm()
-//	host := r.Form["host"][0]
-//
-//
-//	err := p.RegisterHost(r.Form["host"][0])
-//	if err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
-//		_, _ = fmt.Fprintf(w, err.Error())
-//		return
-//	}
-//
-//	_, _ = fmt.Fprintf(w, fmt.Sprintf("register host: %s success", r.Form["host"][0]))
-//}
-
-
-
-//func unregisterHost(w http.ResponseWriter, r *http.Request) {
-//	_ = r.ParseForm()
-//
-//	err := p.UnregisterHost(r.Form["host"][0])
-//	if err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
-//		_, _ = fmt.Fprintf(w, err.Error())
-//		return
-//	}
-//
-//	_, _ = fmt.Fprintf(w, fmt.Sprintf("unregister host: %s success", r.Form["host"][0]))
-//}
-//
-//func getKey(w http.ResponseWriter, r *http.Request) {
-//	_ = r.ParseForm()
-//
-//	val, err := p.GetKey(r.Form["key"][0])
-//	if err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
-//		_, _ = fmt.Fprintf(w, err.Error())
-//		return
-//	}
-//
-//	_, _ = fmt.Fprintf(w, fmt.Sprintf("key: %s, val: %s", r.Form["key"][0], val))
-//}
-//
-//func getKeyLeast(w http.ResponseWriter, r *http.Request) {
-//	_ = r.ParseForm()
-//
-//	val, err := p.GetKeyLeast(r.Form["key"][0])
-//	if err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
-//		_, _ = fmt.Fprintf(w, err.Error())
-//		return
-//	}
-//
-//	_, _ = fmt.Fprintf(w, fmt.Sprintf("key: %s, val: %s", r.Form["key"][0], val))
-//}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -35,53 +34,64 @@ type Proxy struct {
 	reverseProxyMap map[string]*httputil.ReverseProxy
 }
 
-func ProxyStart(cfg *config.Config) error {
+//NewRouterHandler 创建处理器
+func NewRouterHandler(cfg *config.Config) (*mux.Router,error) {
 	muxRouter := mux.NewRouter()
-	logging.INFO.Println("proxy middleware is being loaded")
 	muxRouter.Use(middleware.PanicsHandling)
 	if cfg.MaxAllowed > 0 {
 		muxRouter.Use(middleware.MaxAllowedMiddleware(cfg.MaxAllowed))
 	}
-	logging.INFO.Println("the proxy middleware is loaded successfully")
 
-	logging.INFO.Println("正在解析Proxy路由配置")
 	for _, r := range cfg.Routes {
 		if err := cfg.ValidationAlgorithm(r.Algorithm); err != nil {
-			return err
+			return nil, err
 		}
 
 		upstreamPath := r.UpstreamPathParse()
 		downstreamPath := r.DownstreamPathParse()
-		proxyRoute, err := NewProxyRoute(r.Algorithm, r.DownstreamScheme,upstreamPath, downstreamPath, r.DownstreamHostAndPorts)
+		proxyRoute, err := NewProxy(r.Algorithm, r.DownstreamScheme, upstreamPath, downstreamPath, r.DownstreamHostAndPorts)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if cfg.HealthCheck {
 			proxyRoute.HealthCheck(cfg.HealthCheckInterval)
 		}
-
 		muxRouter.PathPrefix(upstreamPath).Handler(proxyRoute)
 	}
-
-	svr := http.Server{
-		Addr:    ":" + strconv.Itoa(cfg.Port),
-		Handler: muxRouter,
-	}
-
-	if cfg.Schema == "http" {
-		err := svr.ListenAndServe()
-		if err != nil {
-			log.Fatalf("listen and serve error: %s", err)
-		}
-	} else {
-		err := svr.ListenAndServeTLS(cfg.CertCrt, cfg.CertKey)
-		if err != nil {
-			log.Fatalf("listen and serve error: %s", err)
-		}
-	}
-	return nil
+	return muxRouter,nil
 }
+
+//NewProxy 接收下游的主机信息，返回下游主机代理
+func NewProxy(algorithm string,scheme string,upstreamPath string,downstreamPath string, downstreamHosts []config.DownstreamHost) (*Proxy,error) {
+	var targetHosts []string
+	alive := make(map[string]bool)
+	reverseProxyMap := make(map[string]*httputil.ReverseProxy)
+
+	for _, dsh := range downstreamHosts {
+		host, err := dsh.GetDownstreamHost(scheme)
+		if err != nil {
+			return nil, err
+		}
+		alive[host] = true
+		targetHosts = append(targetHosts, host)
+		reverseProxyMap[host] = newSingleHostReverseProxy(scheme, host, upstreamPath, downstreamPath)
+
+		logging.Infof("主机 %s 正常，已添加到负载均衡器", host)
+	}
+	lb, err := balancer.Build(algorithm, targetHosts)
+	if err != nil {
+		return nil, err
+	}
+
+	proxy := &Proxy{
+		bl:              lb,
+		alive:           alive,
+		reverseProxyMap: reverseProxyMap,
+	}
+	return proxy, nil
+}
+
 
 //ServeHTTP 实现到http服务器的代理
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +99,9 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	host, err := p.bl.Balance(key)
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
-		_, _ = w.Write([]byte(fmt.Sprintf("balance error: %s", err.Error())))
+		errStr := fmt.Sprintf("负载均衡器: %s", err.Error())
+		logging.Error(errStr)
+		_, _ = w.Write([]byte(errStr))
 		return
 	}
 	p.bl.Inc(host)
@@ -109,12 +121,12 @@ func (p *Proxy) healthCheck(host string, interval uint) {
 	for range ticker.C {
 		isBackendAlive := util.IsBackendAlive(host)
 		if !isBackendAlive && p.ReadAlive(host) {
-			log.Printf("该主机 %s 不可用，已经从负载均衡器中移除", host)
+			logging.Errorf("主机 %s 不可用，已从负载均衡器中移除", host)
 
 			p.SetAlive(host, false)
 			p.bl.Remove(host)
 		} else if isBackendAlive && !p.ReadAlive(host) {
-			log.Printf("该主机 %s 正常，已添加到负载均衡器", host)
+			logging.Errorf("主机 %s 恢复正常，已添加到负载均衡器", host)
 
 			p.SetAlive(host, true)
 			p.bl.Add(host)
@@ -134,34 +146,6 @@ func (p *Proxy) SetAlive(url string, alive bool) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 	p.alive[url] = alive
-}
-
-//NewProxyRoute 接收下游的主机信息，返回下游主机代理
-func NewProxyRoute(algorithm string,scheme string,upstreamPath string,downstreamPath string, downstreamHosts []config.DownstreamHost) (*Proxy,error) {
-	var targetHosts []string
-	alive := make(map[string]bool)
-	reverseProxyMap := make(map[string]*httputil.ReverseProxy)
-
-	for _, dsh := range downstreamHosts {
-		host, err := dsh.GetDownstreamHost(scheme)
-		if err != nil {
-			return nil, err
-		}
-		alive[host] = true
-		targetHosts = append(targetHosts, host)
-		reverseProxyMap[host] = newSingleHostReverseProxy(scheme, host, upstreamPath, downstreamPath)
-	}
-	lb, err := balancer.Build(algorithm, targetHosts)
-	if err != nil {
-		return nil, err
-	}
-
-	proxy := &Proxy{
-		bl:              lb,
-		alive:           alive,
-		reverseProxyMap: reverseProxyMap,
-	}
-	return proxy, nil
 }
 
 var transport = &http.Transport{
@@ -219,7 +203,6 @@ func newSingleHostReverseProxy(scheme string,host string,upstreamPath string,dow
 		ErrorHandler:   errorHandler,
 	}
 }
-
 
 //func (s *Server) RegisterHost(w http.ResponseWriter, r *http.Request)  {
 //	_ = r.ParseForm()

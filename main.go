@@ -2,9 +2,11 @@ package main
 
 import (
 	"github.com/urfave/cli"
+	"net/http"
 	"os"
 	"proxy/config"
 	"proxy/util/logging"
+	"strconv"
 )
 
 var (
@@ -41,11 +43,27 @@ func main() {
 		if err != nil {
 			return err
 		}
-		return ProxyStart(cfg)
+
+		routerHandler, err := NewRouterHandler(cfg)
+		if err != nil {
+			return err
+		}
+
+		svr := http.Server{
+			Addr:    ":" + strconv.Itoa(cfg.Port),
+			Handler: routerHandler,
+		}
+		logging.Infof("[%s] proxy 启动成功，正在监听中....", svr.Addr)
+
+		if cfg.Schema == "http" {
+			return svr.ListenAndServe()
+		} else {
+			return svr.ListenAndServeTLS(cfg.CertCrt, cfg.CertKey)
+		}
 	}
 
 	//运行CLI应用程序
 	if err := cliApp.Run(os.Args); err != nil {
-		logging.ERROR.Print(err)
+		logging.Error(err)
 	}
 }

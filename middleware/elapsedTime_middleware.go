@@ -12,6 +12,6 @@ func ElapsedTimeHandling(next http.Handler) http.Handler {
 		timeStart := time.Now()
 		next.ServeHTTP(w, r)
 		timeElapsed := time.Since(timeStart)
-		logging.INFO.Println(util.GetIP(r), r.RequestURI, timeElapsed.String())
+		logging.Info(util.GetIP(r), r.RequestURI, timeElapsed.String())
 	})
 }

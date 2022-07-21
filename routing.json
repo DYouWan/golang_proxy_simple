@@ -1,39 +1,20 @@
 {
   "ReRoutes": [
     {
-      "UpstreamHttpMethod": [
-        "GET",
-        "POST"
-      ],
+      "UpstreamHttpMethod": ["GET","POST"],
       "UpstreamPathTemplate": "/apig/config/{url}",
-      "DownstreamScheme": "http",
       "Algorithm": "consistent-hash",
-      "UseServiceDiscovery": false,
       "DownstreamPathTemplate": "/api/v1/{url}",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 51502
-        },
-        {
-          "Host": "localhost",
-          "Port": 51503
-        }
-      ]
+      "DownstreamHosts": ["http://localhost:51502", "http://localhost:51503"],
+      "UseServiceDiscovery": false
     },
     {
       "UpstreamHttpMethod": [],
       "UpstreamPathTemplate": "/apig/admin/{url}",
-      "DownstreamScheme": "http",
       "Algorithm": "consistent-hash",
-      "UseServiceDiscovery": false,
       "DownstreamPathTemplate": "/api/v1/{url}",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 51505
-        }
-      ]
+      "DownstreamHosts": ["http://localhost:51505"],
+      "UseServiceDiscovery": false
     }
   ]
 }

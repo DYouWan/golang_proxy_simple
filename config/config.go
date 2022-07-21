@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jinzhu/configor"
-	"strings"
 )
 
 const Algorithms string = "ip-hash|consistent-hash|p2c|random|round-robin|least-load|bounded"
@@ -50,19 +49,3 @@ func (c *Config) Validation() error {
 	}
 	return nil
 }
-
-func (c *Config) ValidationAlgorithm(str string) error {
-	var exists bool
-	algorithms := strings.Split(Algorithms, "|")
-	for _, algorithm := range algorithms {
-		if algorithm == str {
-			exists = true
-			break
-		}
-	}
-	if exists == false {
-		return fmt.Errorf("该 \"%s\" 算法不支持", str)
-	}
-	return nil
-}
-

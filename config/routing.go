@@ -2,9 +2,8 @@ package config
 
 import (
 	"fmt"
-	"net/url"
-	"proxy/util"
 	"regexp"
+	"strings"
 )
 
 type Routing struct {
@@ -12,8 +11,6 @@ type Routing struct {
 	UpstreamHTTPMethod []string `json:"UpstreamHttpMethod"`
 	//UpstreamPathTemplate 客户端请求代理时的Url路径模板
 	UpstreamPathTemplate string `json:"UpstreamPathTemplate"`
-	//DownstreamScheme 请求协议，目前支持http和https
-	DownstreamScheme string `json:"DownstreamScheme"`
 	//Algorithm 使用的负载均衡算法
 	Algorithm string `json:"Algorithm"`
 	//UseServiceDiscovery 是否启用服务发现
@@ -21,57 +18,57 @@ type Routing struct {
 	//DownstreamPathTemplate 代理向目标转发时的Url路径模板
 	DownstreamPathTemplate string `json:"DownstreamPathTemplate"`
 	//DownstreamHostAndPorts 代理向下游转发地址集合
-	DownstreamHostAndPorts []DownstreamHost `json:"DownstreamHostAndPorts"`
+	DownstreamHosts []string `json:"DownstreamHosts"`
 }
 
-type DownstreamHost struct {
-	Host string `json:"Host"`
-	Port int    `json:"Port"`
+//ValidationAlgorithm 验证算法是否支持
+func (r *Routing) ValidationAlgorithm() error {
+	var exists bool
+	algorithms := strings.Split(Algorithms, "|")
+	for _, algorithm := range algorithms {
+		if algorithm == r.Algorithm {
+			exists = true
+			break
+		}
+	}
+	if exists == false {
+		return fmt.Errorf("该 \"%s\" 算法不支持", r.Algorithm)
+	}
+	return nil
 }
 
 //UpstreamPathParse 上游路径解析
-func (c *Routing) UpstreamPathParse() string {
+func (r *Routing) UpstreamPathParse() string {
 	//验证是否以/开头
-	matched, _ := regexp.MatchString("^/.*", c.UpstreamPathTemplate)
+	matched, _ := regexp.MatchString("^/.*", r.UpstreamPathTemplate)
 	if !matched {
-		panic(fmt.Errorf("客户端上游请求路径模板 \"%s\" 不正确 ", c.UpstreamPathTemplate))
+		panic(fmt.Errorf("客户端上游请求路径模板 \"%s\" 不正确 ", r.UpstreamPathTemplate))
 	}
 	//验证是否存在占位符
-	matched, _ = regexp.MatchString(".*{url}$", c.UpstreamPathTemplate)
+	matched, _ = regexp.MatchString(".*{url}$", r.UpstreamPathTemplate)
 	if !matched {
-		return c.UpstreamPathTemplate
+		return r.UpstreamPathTemplate
 	}
 	//获取占位符之前的路径
 	re, _ := regexp.Compile("^(.*)/{url}$")
-	prefixPath := re.ReplaceAllString(c.UpstreamPathTemplate, "$1")
+	prefixPath := re.ReplaceAllString(r.UpstreamPathTemplate, "$1")
 	return prefixPath
 }
 
 //DownstreamPathParse 下游路径解析
-func (c *Routing) DownstreamPathParse() string {
+func (r *Routing) DownstreamPathParse() string {
 	//验证是否以/开头
-	matched, _ := regexp.MatchString("^/.*", c.DownstreamPathTemplate)
+	matched, _ := regexp.MatchString("^/.*", r.DownstreamPathTemplate)
 	if !matched {
-		panic(fmt.Errorf("客户端下游请求路径模板 \"%s\" 不正确 ", c.DownstreamPathTemplate))
+		panic(fmt.Errorf("客户端下游请求路径模板 \"%s\" 不正确 ", r.DownstreamPathTemplate))
 	}
 	//验证是否存在占位符
-	matched, _ = regexp.MatchString(".*{url}$", c.DownstreamPathTemplate)
+	matched, _ = regexp.MatchString(".*{url}$", r.DownstreamPathTemplate)
 	if !matched {
-		return c.DownstreamPathTemplate
+		return r.DownstreamPathTemplate
 	}
 	//获取占位符之前的路径
 	re, _ := regexp.Compile("^(.*)/{url}$")
-	prefixPath := re.ReplaceAllString(c.DownstreamPathTemplate, "$1")
+	prefixPath := re.ReplaceAllString(r.DownstreamPathTemplate, "$1")
 	return prefixPath
-}
-
-//GetDownstreamHost 获取下游的Host ip:port
-func (h *DownstreamHost) GetDownstreamHost(scheme string) (string,error) {
-	urlStr := fmt.Sprintf("%s://%s:%d", scheme, h.Host, h.Port)
-	parseUrl, err := url.Parse(urlStr)
-	if err != nil {
-		return "", err
-	}
-	host := util.GetHost(parseUrl)
-	return host, nil
 }

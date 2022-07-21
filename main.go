@@ -1,10 +1,13 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
 	"github.com/urfave/cli"
 	"net/http"
 	"os"
 	"proxy/config"
+	"proxy/handler"
+	"proxy/middleware"
 	"proxy/util/logging"
 	"strconv"
 )
@@ -44,14 +47,14 @@ func main() {
 			return err
 		}
 
-		routerHandler, err := NewRouterHandler(cfg)
+		muxHandler, err := NewMuxHandler(cfg.MaxAllowed, cfg.HealthCheck, cfg.HealthCheckInterval, cfg.Routes)
 		if err != nil {
 			return err
 		}
 
 		svr := http.Server{
 			Addr:    ":" + strconv.Itoa(cfg.Port),
-			Handler: routerHandler,
+			Handler: muxHandler,
 		}
 		logging.Infof("[%s] proxy 启动成功，正在监听中....", svr.Addr)
 
@@ -68,55 +71,34 @@ func main() {
 	}
 }
 
-//func registerHost(w http.ResponseWriter, r *http.Request) {
-//	_ = r.ParseForm()
-//	host := r.Form["host"][0]
-//
-//	err := p.RegisterHost(r.Form["host"][0])
-//	if err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
-//		_, _ = fmt.Fprintf(w, err.Error())
-//		return
-//	}
-//
-//	_, _ = fmt.Fprintf(w, fmt.Sprintf("register host: %s success", r.Form["host"][0]))
-//}
+// NewMuxHandler 创建路由处理器 ref: https://github.com/gorilla/mux
+func NewMuxHandler(maxAllowed uint,healthCheck bool,healthCheckInterval uint, routing []config.Routing) (*mux.Router,error) {
+	muxRouter := mux.NewRouter()
+	muxRouter.Use(middleware.PanicsHandling)
+	if maxAllowed > 0 {
+		muxRouter.Use(middleware.MaxAllowedMiddleware(maxAllowed))
+	}
 
-//func unregisterHost(w http.ResponseWriter, r *http.Request) {
-//	_ = r.ParseForm()
-//
-//	err := p.UnregisterHost(r.Form["host"][0])
-//	if err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
-//		_, _ = fmt.Fprintf(w, err.Error())
-//		return
-//	}
-//
-//	_, _ = fmt.Fprintf(w, fmt.Sprintf("unregister host: %s success", r.Form["host"][0]))
-//}
-//
-//func getKey(w http.ResponseWriter, r *http.Request) {
-//	_ = r.ParseForm()
-//
-//	val, err := p.GetKey(r.Form["key"][0])
-//	if err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
-//		_, _ = fmt.Fprintf(w, err.Error())
-//		return
-//	}
-//
-//	_, _ = fmt.Fprintf(w, fmt.Sprintf("key: %s, val: %s", r.Form["key"][0], val))
-//}
-//
-//func getKeyLeast(w http.ResponseWriter, r *http.Request) {
-//	_ = r.ParseForm()
-//
-//	val, err := p.GetKeyLeast(r.Form["key"][0])
-//	if err != nil {
-//		w.WriteHeader(http.StatusInternalServerError)
-//		_, _ = fmt.Fprintf(w, err.Error())
-//		return
-//	}
-//
-//	_, _ = fmt.Fprintf(w, fmt.Sprintf("key: %s, val: %s", r.Form["key"][0], val))
-//}
+	for _, r := range routing {
+		if err := r.ValidationAlgorithm(); err != nil {
+			return nil, err
+		}
+		upstreamPath := r.UpstreamPathParse()
+		downstreamPath := r.DownstreamPathParse()
+		prefixHandler, err := handler.NewRoutePrefixHandler(r.Algorithm, upstreamPath, downstreamPath, r.DownstreamHosts)
+		if err != nil {
+			return nil, err
+		}
+
+		//每个UpstreamPathTemplate对应多个下游主机，这里判断是否做主机的健康检查
+		if healthCheck {
+			prefixHandler.HealthCheck(healthCheckInterval)
+		}
+
+		//例如上游请求模板配置的是：/apig/config 当请求这个前缀时会匹配对应的RoutePrefixHandler去处理
+		muxRouter.PathPrefix(upstreamPath).Handler(prefixHandler).Methods(r.UpstreamHTTPMethod...)
+
+		logging.Infof("Url Path: %s  HTTPMethod:%s 注册成功", upstreamPath, r.UpstreamHTTPMethod)
+	}
+	return muxRouter, nil
+}
